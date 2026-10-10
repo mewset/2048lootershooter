@@ -2,7 +2,13 @@
 
 A top-down survival shooter where your inventory is a 2048 board.
 
+![A gunner lines up a shot while the bag fills with tiles](screenshots/03-gunner-aim.png)
+
 Enemies drop number tiles. Slide the bag to merge them: your **highest tile decides your gun** (Pea Shooter → Shotgun → Rail Carbine → … → THE 2048), and the **sum of all tiles sets your fire rate**. Every merge heals a little. A full bag can't pick up loot, and if it locks up with no hammer to smash a tile, you have five seconds before it's game over.
+
+| Scrap SMG, early game | Pump Shotgun with two 32s in the bag |
+|---|---|
+| ![Scrap SMG firing as an enemy explodes](screenshots/02-scrap-smg.png) | ![Pump Shotgun equipped, two 32 tiles in the bag](screenshots/05-pump-shotgun.png) |
 
 Built with [three.js](https://threejs.org/) (orthographic 2D sprites) and [Vite](https://vitejs.dev/).
 
