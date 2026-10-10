@@ -1,0 +1,518 @@
+<title>2048 Looter Shooter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: arena canvas left, loot-bag (2048 board) + weapon card right; stacks on phones. Single dark arcade look. */
+:root {
+  --bg: #0b0d12; --panel: #141821; --arena: #0f1219; --line: #252b39;
+  --fg: #e9edf5; --muted: #7c859b; --accent: #ffcc33; --danger: #ff4d5e;
+  --player: #6ee7ff; --enemy: #ff4d5e; --runner: #ff8a3d; --brute: #c53d92;
+  --t0: #5a6172; --t1: #3faa58; --t2: #3a78d4; --t3: #9a4fd6; --t4: #ee8a22; --t5: #ff2f6a;
+  --display: 'Chakra Petch', 'Segoe UI', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--fg); font-family: var(--display); }
+.wrap { display: flex; flex-wrap: wrap; gap: 20px; justify-content: center; align-items: flex-start;
+  max-width: 1080px; margin: 0 auto; padding: 20px 16px; }
+.arena { position: relative; flex: 1 1 460px; min-width: 0; max-width: 640px; }
+canvas { display: block; width: 100%; aspect-ratio: 1; max-width: 100%; background: var(--arena);
+  border: 1px solid var(--line); border-radius: 6px; touch-action: none; }
+.side { flex: 0 1 340px; min-width: 0; width: 100%; display: flex; flex-direction: column; gap: 14px; }
+h1 { margin: 0; font-size: 1.35rem; letter-spacing: .04em; text-transform: uppercase; }
+h1 span { color: var(--accent); }
+
+.weapon { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 14px; display: grid; gap: 10px; }
+.wname { font-size: 1.25rem; font-weight: 700; line-height: 1.1; }
+.rarity { font-family: var(--mono); font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; }
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.stat { display: grid; gap: 2px; }
+.stat b { font-family: var(--mono); font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.stat small, .next { color: var(--muted); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; }
+
+.bagwrap { position: relative; }
+.board { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 8px; aspect-ratio: 1; max-width: 100%;
+  background: var(--panel); border: 2px solid var(--line); border-radius: 6px; touch-action: none; transition: border-color .15s; }
+.board.full { border-color: var(--danger); }
+.cell { background: var(--arena); border-radius: 4px; position: relative; }
+.tile { position: absolute; inset: 0; display: grid; place-items: center; border-radius: 4px;
+  font-family: var(--mono); font-weight: 700; color: #fff; font-size: clamp(.9rem, 4.2vw, 1.6rem); }
+.tile.d3 { font-size: clamp(.8rem, 3.6vw, 1.35rem); } .tile.d4 { font-size: clamp(.7rem, 3vw, 1.1rem); }
+.tile.t0 { background: var(--t0); } .tile.t1 { background: var(--t1); } .tile.t2 { background: var(--t2); }
+.tile.t3 { background: var(--t3); } .tile.t4 { background: var(--t4); } .tile.t5 { background: var(--t5); box-shadow: 0 0 18px var(--t5); }
+.tile.pop { animation: pop .18s ease-out; } .tile.new { animation: grow .16s ease-out; }
+@keyframes pop { 50% { transform: scale(1.18); } }
+@keyframes grow { from { transform: scale(.2); opacity: .2; } }
+.fullmsg { position: absolute; left: 50%; top: -11px; transform: translateX(-50%); background: var(--danger); color: #fff;
+  font-size: .72rem; font-weight: 700; letter-spacing: .1em; padding: 2px 8px; border-radius: 3px; white-space: nowrap; }
+.board.armed .cell { cursor: pointer; }
+.board.hammer { border-color: var(--accent); }
+.board.hammer .tile { opacity: .75; }
+.cell.sel { outline: 3px solid var(--accent); outline-offset: 2px; }
+.cell.sel .tile { opacity: 1; }
+
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+button { font: 700 .85rem var(--display); letter-spacing: .06em; text-transform: uppercase; color: var(--bg);
+  background: var(--accent); border: 0; border-radius: 4px; padding: 10px 16px; cursor: pointer; }
+button.ghost { background: transparent; color: var(--fg); border: 1px solid var(--line); }
+button:disabled { opacity: .45; cursor: default; }
+button:focus-visible { outline: 2px solid var(--player); outline-offset: 2px; }
+.help { color: var(--muted); font-size: .85rem; line-height: 1.55; margin: 0; }
+kbd { font-family: var(--mono); font-size: .75rem; color: var(--fg); border: 1px solid var(--line); border-bottom-width: 2px;
+  border-radius: 3px; padding: 0 5px; }
+
+.overlay { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(8, 10, 14, .78);
+  border-radius: 6px; text-align: center; padding: 16px; }
+.overlay .box { display: grid; gap: 12px; justify-items: center; max-width: 34ch; }
+.overlay h2 { margin: 0; font-size: 2rem; text-transform: uppercase; letter-spacing: .04em; text-wrap: balance; }
+.overlay p { margin: 0; color: var(--muted); line-height: 1.5; }
+.overlay .res { font-family: var(--mono); color: var(--fg); font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) { .tile.pop, .tile.new { animation: none; } }
+</style>
+
+<div class="wrap">
+  <div class="arena">
+    <canvas id="cv" aria-label="Arena"></canvas>
+    <div class="overlay" id="ov">
+      <div class="box">
+        <h2 id="ovT">2048 Looter Shooter</h2>
+        <p id="ovP">Enemies drop tiles. Your gun is only as strong as your highest tile. Merge your bag while you stay alive.</p>
+        <button id="ovB">Start</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="side">
+    <h1>2048 <span>Looter</span> Shooter</h1>
+    <div class="weapon">
+      <div>
+        <div class="rarity" id="wR">Common</div>
+        <div class="wname" id="wN">Pea Shooter</div>
+      </div>
+      <div class="stats">
+        <div class="stat"><small>Damage</small><b id="sD">3</b></div>
+        <div class="stat"><small>Shots/s</small><b id="sF">2.6</b></div>
+        <div class="stat"><small>Pellets</small><b id="sP">1</b></div>
+        <div class="stat"><small>Bag</small><b id="sB">1/16</b></div>
+      </div>
+      <div class="next" id="wX">Next: 4 → Rusty Pistol</div>
+    </div>
+    <div class="bagwrap">
+      <div class="board" id="bd"></div>
+      <div class="fullmsg" id="fm" hidden>Bag full · merge!</div>
+    </div>
+    <div class="row">
+      <button class="ghost" id="hamB">Hammer ×1 [Space]</button>
+      <button class="ghost" id="pauseB">Pause [P]</button>
+    </div>
+    <p class="help"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> to move · your gun aims and fires on its own<br>
+      <kbd>←</kbd><kbd>↑</kbd><kbd>→</kbd><kbd>↓</kbd> to swipe the bag (2048) · every merge heals a little<br>
+      The sum of all tiles raises your fire rate, and your highest tile decides your gun. When the bag is full you can't pick up loot.<br>
+      <b>Hammers</b> (yellow drops, max 3): click a tile to smash it, or press <kbd>Space</kbd> → arrows → <kbd>Space</kbd> (time slows down).<br>
+      If your bag locks up with no hammer, you have 5 seconds to find one before it's game over.<br>
+      Mobile: hold your finger in the arena to move, swipe on the bag, tap a tile to smash it.</p>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const cssv = getComputedStyle(document.documentElement);
+const V = n => cssv.getPropertyValue(n).trim();
+const COL = { player: V('--player'), enemy: V('--enemy'), runner: V('--runner'), brute: V('--brute'), accent: V('--accent'),
+  danger: V('--danger'), line: V('--line'), fg: V('--fg'), muted: V('--muted'), arena: V('--arena') };
+const TC = ['--t0', '--t1', '--t2', '--t3', '--t4', '--t5'].map(V);
+const RARITY = ['Common', 'Uncommon', 'Rare', 'Epic', 'Legendary', 'Mythic'];
+const NAMES = ['', 'Pea Shooter', 'Rusty Pistol', 'Scrap SMG', 'Twin Uzis', 'Pump Shotgun', 'Rail Carbine',
+  'Plasma Rifle', 'Storm Cannon', 'Void Repeater', 'Sunbreaker', 'THE 2048', 'Beyond 2048', 'Beyond Beyond'];
+const tierOf = v => { const l = Math.log2(v); return l <= 2 ? 0 : l <= 4 ? 1 : l <= 6 ? 2 : l <= 8 ? 3 : l <= 10 ? 4 : 5; };
+
+const cv = $('cv'), ctx = cv.getContext('2d'), W = 640, H = 640;
+function resize() { const d = Math.min(2, devicePixelRatio || 1); cv.width = W * d; cv.height = H * d; ctx.setTransform(d, 0, 0, d, 0, 0); }
+resize(); addEventListener('resize', resize);
+
+let S, running = false;
+const keys = {};
+let touchTarget = null;
+
+function newGame() {
+  S = { t: 0, p: { x: W / 2, y: H / 2, r: 12, hp: 100, max: 100, inv: 0 }, aim: -Math.PI / 2,
+    en: [], bu: [], loot: [], fx: [], tx: [], board: Array(16).fill(0), kills: 0, score: 0,
+    spawnT: 1, fireT: 0, shake: 0, dead: false, paused: false, full: 0, banner: null, best: 2,
+    hammers: 1, hammerMode: false, cursor: 5, lockT: 0 };
+  S.board[5] = 2;
+  renderBoard(new Set(), new Set([5]));
+}
+
+/* ---------- Weapon from board ---------- */
+function weapon() {
+  const b = S.board, max = Math.max(2, ...b), l = Math.log2(max), sum = b.reduce((a, v) => a + v, 0) || 2;
+  return { max, l, tier: tierOf(max), name: NAMES[Math.min(l, NAMES.length - 1)],
+    dmg: Math.round(3 * Math.pow(1.55, l - 1)), rate: Math.min(12, 2 + 0.6 * Math.log2(sum)),
+    pellets: l >= 6 ? 1 + Math.floor((l - 4) / 2) : 1 };
+}
+
+/* ---------- 2048 board ---------- */
+const bd = $('bd');
+function renderBoard(merged, added) {
+  bd.innerHTML = '';
+  S.board.forEach((v, i) => {
+    const c = document.createElement('div'); c.className = 'cell' + (S.hammerMode && i === S.cursor ? ' sel' : ''); c.dataset.i = i;
+    if (v) {
+      const t = document.createElement('div'), d = String(v).length;
+      t.className = 'tile t' + tierOf(v) + (d >= 4 ? ' d4' : d === 3 ? ' d3' : '') + (merged.has(i) ? ' pop' : '') + (added.has(i) ? ' new' : '');
+      t.textContent = v; c.appendChild(t);
+    }
+    bd.appendChild(c);
+  });
+  const w = weapon();
+  $('wN').textContent = w.name; $('wN').style.color = TC[w.tier];
+  $('wR').textContent = RARITY[w.tier] + ' · tile ' + w.max; $('wR').style.color = TC[w.tier];
+  $('sD').textContent = w.dmg; $('sF').textContent = w.rate.toFixed(1); $('sP').textContent = w.pellets;
+  $('sB').textContent = S.board.filter(v => v).length + '/16';
+  const nl = w.l + 1;
+  $('wX').textContent = NAMES[nl] ? 'Next: ' + 2 ** nl + ' → ' + NAMES[nl] : 'You beat the game. Kind of.';
+  if (w.max > S.best) {
+    S.best = w.max;
+    if (running) S.banner = { text: w.name.toUpperCase(), sub: RARITY[w.tier] + ' unlocked', c: TC[w.tier], life: 1.8 };
+  }
+}
+
+function slide(dir) { // 0 left, 1 right, 2 up, 3 down
+  if (!running || S.dead || S.paused) return;
+  const b = S.board, nb = Array(16).fill(0), merged = new Set(), merges = [];
+  let moved = false;
+  for (let i = 0; i < 4; i++) {
+    const idx = [];
+    for (let j = 0; j < 4; j++) {
+      const r = dir < 2 ? i : (dir === 2 ? j : 3 - j), c = dir < 2 ? (dir === 0 ? j : 3 - j) : i;
+      idx.push(r * 4 + c);
+    }
+    const vals = idx.map(k => b[k]).filter(v => v), out = [];
+    for (let k = 0; k < vals.length; k++) {
+      if (k + 1 < vals.length && vals[k] === vals[k + 1]) { out.push([vals[k] * 2, 1]); merges.push(vals[k] * 2); k++; }
+      else out.push([vals[k], 0]);
+    }
+    out.forEach(([v, m], j) => { nb[idx[j]] = v; if (m) merged.add(idx[j]); });
+    idx.forEach(k => { if (nb[k] !== b[k]) moved = true; });
+  }
+  if (!moved) return;
+  S.board = nb;
+  for (const v of merges) {
+    S.score += v;
+    const h = 2 + Math.log2(v);
+    S.p.hp = Math.min(S.p.max, S.p.hp + h);
+    S.tx.push({ x: S.p.x, y: S.p.y - 22, s: '+' + Math.round(h) + ' HP', c: '#5be08a', life: .9, size: 13 });
+  }
+  renderBoard(merged, new Set());
+}
+
+function addLoot(v) {
+  const empty = S.board.map((x, i) => x ? -1 : i).filter(i => i >= 0);
+  if (!empty.length) return false;
+  const i = empty[Math.random() * empty.length | 0];
+  S.board[i] = v; renderBoard(new Set(), new Set([i]));
+  return true;
+}
+
+function smash(i) {
+  if (!running || S.dead || S.paused || S.hammers <= 0 || !S.board[i]) return;
+  if (S.board.filter(v => v).length <= 1) return;
+  S.board[i] = 0; S.hammers--; S.hammerMode = false; S.lockT = 0; S.shake = 4;
+  renderBoard(new Set(), new Set());
+}
+function toggleHammer() {
+  if (!running || S.dead || S.paused) return;
+  if (S.hammerMode) S.hammerMode = false;
+  else if (S.hammers > 0) S.hammerMode = true;
+  renderBoard(new Set(), new Set());
+}
+function moveCursor(dir) {
+  let r = S.cursor >> 2, c = S.cursor & 3;
+  if (dir === 0) c = Math.max(0, c - 1); if (dir === 1) c = Math.min(3, c + 1);
+  if (dir === 2) r = Math.max(0, r - 1); if (dir === 3) r = Math.min(3, r + 1);
+  S.cursor = r * 4 + c; renderBoard(new Set(), new Set());
+}
+function isLocked() {
+  const b = S.board;
+  if (b.includes(0)) return false;
+  for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) {
+    const v = b[r * 4 + c];
+    if ((c < 3 && b[r * 4 + c + 1] === v) || (r < 3 && b[r * 4 + c + 4] === v)) return false;
+  }
+  return true;
+}
+
+/* ---------- Enemies ---------- */
+const TYPES = {
+  grunt: { r: 12, sp: 62, hp: 6, dmg: 10, col: 'enemy' },
+  runner: { r: 9, sp: 118, hp: 3.5, dmg: 6, col: 'runner' },
+  brute: { r: 20, sp: 40, hp: 26, dmg: 22, col: 'brute' },
+};
+function spawn() {
+  const roll = Math.random(), t = S.t;
+  const type = t > 45 && roll < .12 ? 'brute' : t > 15 && roll < .4 ? 'runner' : 'grunt';
+  const T = TYPES[type], side = Math.random() * 4 | 0, u = Math.random();
+  const x = side === 0 ? -20 : side === 1 ? W + 20 : u * W, y = side === 2 ? -20 : side === 3 ? H + 20 : u * H;
+  const mul = 1 + t / 25 + (t / 60) ** 2 * .5;
+  S.en.push({ type, x, y, r: T.r, sp: T.sp * (1 + Math.min(.6, t / 400)), hp: T.hp * mul, maxHp: T.hp * mul, dmg: T.dmg, col: COL[T.col], hit: 0 });
+}
+function dropFor(e) {
+  const r = Math.random();
+  if (e.type === 'brute') return r < .35 ? 8 : 4;
+  if (e.type === 'runner') return r < .5 ? 2 : 0;
+  return r < .12 ? 4 : r < .85 ? 2 : 0;
+}
+
+/* ---------- Update ---------- */
+function update(dt) {
+  S.t += dt;
+  const p = S.p;
+  let mx = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0), my = (keys.KeyS ? 1 : 0) - (keys.KeyW ? 1 : 0);
+  if (touchTarget) { const dx = touchTarget.x - p.x, dy = touchTarget.y - p.y, d = Math.hypot(dx, dy); if (d > 6) { mx = dx / d; my = dy / d; } }
+  const ml = Math.hypot(mx, my);
+  if (ml) { p.x += mx / ml * 190 * dt; p.y += my / ml * 190 * dt; }
+  p.x = Math.max(p.r, Math.min(W - p.r, p.x)); p.y = Math.max(p.r, Math.min(H - p.r, p.y));
+  p.inv = Math.max(0, p.inv - dt);
+
+  S.spawnT -= dt;
+  if (S.spawnT <= 0) { spawn(); if (S.t > 90 && Math.random() < .3) spawn(); S.spawnT = Math.max(.2, 1.25 - S.t * .011) * (.6 + Math.random() * .8); }
+
+  const w = weapon();
+  S.fireT -= dt;
+  let near = null, nd = 1e9;
+  for (const e of S.en) { const d = Math.hypot(e.x - p.x, e.y - p.y); if (d < nd) { nd = d; near = e; } }
+  if (near) S.aim = Math.atan2(near.y - p.y, near.x - p.x);
+  if (S.fireT <= 0 && near) {
+    for (let k = 0; k < w.pellets; k++) {
+      const a = S.aim + (k - (w.pellets - 1) / 2) * .13;
+      S.bu.push({ x: p.x, y: p.y, vx: Math.cos(a) * 540, vy: Math.sin(a) * 540, r: 2.5 + w.l * .35, dmg: w.dmg, c: TC[w.tier], life: 1.4 });
+    }
+    S.fireT = 1 / w.rate;
+  }
+
+  for (const b of S.bu) {
+    b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
+    for (const e of S.en) {
+      if (e.hp > 0 && Math.hypot(e.x - b.x, e.y - b.y) < e.r + b.r) {
+        e.hp -= b.dmg; e.hit = .08; b.life = 0;
+        S.tx.push({ x: e.x + (Math.random() - .5) * 10, y: e.y - e.r, s: String(b.dmg), c: b.c, life: .6, size: 12 + Math.min(10, b.dmg / 15) });
+        if (e.hp <= 0) kill(e);
+        break;
+      }
+    }
+  }
+  S.bu = S.bu.filter(b => b.life > 0 && b.x > -20 && b.x < W + 20 && b.y > -20 && b.y < H + 20);
+
+  for (const e of S.en) {
+    const dx = p.x - e.x, dy = p.y - e.y, d = Math.hypot(dx, dy) || 1;
+    e.x += dx / d * e.sp * dt; e.y += dy / d * e.sp * dt; e.hit = Math.max(0, e.hit - dt);
+    if (d < e.r + p.r && p.inv <= 0) {
+      p.hp -= e.dmg; p.inv = .6; S.shake = 8;
+      S.tx.push({ x: p.x, y: p.y - 20, s: '-' + e.dmg, c: COL.danger, life: .8, size: 16 });
+      if (p.hp <= 0) { p.hp = 0; gameOver(); }
+    }
+  }
+  for (let i = 0; i < S.en.length; i++) for (let j = i + 1; j < S.en.length; j++) {
+    const a = S.en[i], b = S.en[j], dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy), m = a.r + b.r;
+    if (d > 0 && d < m) { const o = (m - d) / 2 / d; a.x -= dx * o; a.y -= dy * o; b.x += dx * o; b.y += dy * o; }
+  }
+  S.en = S.en.filter(e => e.hp > 0);
+
+  let blocked = false;
+  for (const l of S.loot) {
+    l.life -= dt;
+    const dx = p.x - l.x, dy = p.y - l.y, d = Math.hypot(dx, dy);
+    if (d < 70) { l.x += dx / d * 260 * dt; l.y += dy / d * 260 * dt; }
+    if (d < p.r + 9) {
+      if (l.hammer) {
+        l.life = 0;
+        if (S.hammers < 3) { S.hammers++; S.tx.push({ x: p.x, y: p.y - 24, s: '+HAMMER', c: COL.accent, life: 1, size: 14 }); }
+        else { S.score += 50; S.tx.push({ x: p.x, y: p.y - 24, s: '+50', c: COL.accent, life: .8, size: 13 }); }
+      } else if (addLoot(l.v)) l.life = 0; else blocked = true;
+    }
+  }
+  S.loot = S.loot.filter(l => l.life > 0);
+  if (blocked) S.full = .8;
+  S.full = Math.max(0, S.full - dt);
+
+  if (isLocked() && S.hammers === 0) {
+    S.lockT += dt;
+    if (S.lockT >= 5) { gameOver('Bag locked up'); return; }
+  } else S.lockT = 0;
+
+  for (const f of S.fx) { f.x += f.vx * dt; f.y += f.vy * dt; f.vx *= .9; f.vy *= .9; f.life -= dt; }
+  S.fx = S.fx.filter(f => f.life > 0);
+  for (const t of S.tx) { t.y -= 30 * dt; t.life -= dt; }
+  S.tx = S.tx.filter(t => t.life > 0);
+  if (S.banner) { S.banner.life -= dt; if (S.banner.life <= 0) S.banner = null; }
+  S.shake = Math.max(0, S.shake - dt * 30);
+}
+
+function kill(e) {
+  S.kills++; S.score += 10;
+  for (let i = 0; i < 10; i++) { const a = Math.random() * 6.28, s = 60 + Math.random() * 160;
+    S.fx.push({ x: e.x, y: e.y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, c: e.col, life: .4 + Math.random() * .3 }); }
+  const v = dropFor(e);
+  if (v) S.loot.push({ x: e.x, y: e.y, v, life: 10 });
+  const hc = e.type === 'brute' ? .3 : e.type === 'runner' ? .06 : .035;
+  if (Math.random() < hc) S.loot.push({ x: e.x + 12, y: e.y, v: 0, hammer: true, life: 12 });
+}
+
+function gameOver(reason = 'You died') {
+  S.dead = true; S.hammerMode = false;
+  showOverlay(reason, `<span class="res">${fmtTime(S.t)} · ${S.kills} kills · best tile ${S.best}<br>${weapon().name} · score ${S.score}</span>`, 'Play again');
+}
+
+/* ---------- Draw ---------- */
+const fmtTime = t => (t / 60 | 0) + ':' + String(t % 60 | 0).padStart(2, '0');
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x, y, w, h, r) : ctx.rect(x, y, w, h); }
+
+function draw() {
+  ctx.save();
+  ctx.fillStyle = COL.arena; ctx.fillRect(0, 0, W, H);
+  if (S.shake) ctx.translate((Math.random() - .5) * S.shake, (Math.random() - .5) * S.shake);
+  ctx.strokeStyle = COL.line; ctx.lineWidth = 1; ctx.globalAlpha = .45;
+  for (let g = 40; g < W; g += 40) { ctx.beginPath(); ctx.moveTo(g, 0); ctx.lineTo(g, H); ctx.moveTo(0, g); ctx.lineTo(W, g); ctx.stroke(); }
+  ctx.globalAlpha = 1;
+
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (const l of S.loot) {
+    if (l.life < 3 && (l.life * 8 | 0) % 2) continue;
+    if (l.hammer) {
+      ctx.strokeStyle = COL.accent; ctx.lineWidth = 2; ctx.globalAlpha = .5 + .5 * Math.sin(S.t * 8);
+      ctx.beginPath(); ctx.arc(l.x, l.y, 14, 0, 6.29); ctx.stroke(); ctx.globalAlpha = 1;
+      ctx.save(); ctx.translate(l.x, l.y); ctx.rotate(-.6); ctx.fillStyle = COL.accent;
+      ctx.fillRect(-2, -3, 4, 13); ctx.fillRect(-8, -9, 16, 7); ctx.restore();
+      continue;
+    }
+    rr(l.x - 10, l.y - 10, 20, 20, 3); ctx.fillStyle = TC[tierOf(l.v)]; ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = '700 11px ' + V('--mono'); ctx.fillText(l.v, l.x, l.y + 1);
+  }
+  for (const e of S.en) {
+    ctx.fillStyle = e.hit ? '#fff' : e.col;
+    if (e.type === 'brute') { rr(e.x - e.r, e.y - e.r, e.r * 2, e.r * 2, 4); ctx.fill(); }
+    else { ctx.beginPath(); ctx.arc(e.x, e.y, e.r, 0, 6.29); ctx.fill(); }
+    if (e.hp < e.maxHp) { ctx.fillStyle = '#000a'; ctx.fillRect(e.x - e.r, e.y - e.r - 7, e.r * 2, 3);
+      ctx.fillStyle = e.col; ctx.fillRect(e.x - e.r, e.y - e.r - 7, e.r * 2 * e.hp / e.maxHp, 3); }
+  }
+  for (const b of S.bu) { ctx.fillStyle = b.c; ctx.beginPath(); ctx.arc(b.x, b.y, b.r, 0, 6.29); ctx.fill(); }
+  for (const f of S.fx) { ctx.globalAlpha = Math.min(1, f.life * 2.5); ctx.fillStyle = f.c; ctx.fillRect(f.x - 2, f.y - 2, 4, 4); }
+  ctx.globalAlpha = 1;
+
+  const p = S.p;
+  if (!(p.inv > 0 && (p.inv * 20 | 0) % 2)) {
+    ctx.strokeStyle = TC[weapon().tier]; ctx.lineWidth = 5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + Math.cos(S.aim) * 22, p.y + Math.sin(S.aim) * 22); ctx.stroke();
+    ctx.fillStyle = COL.player; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, 6.29); ctx.fill();
+  }
+  for (const t of S.tx) { ctx.globalAlpha = Math.min(1, t.life * 2); ctx.fillStyle = t.c; ctx.font = `700 ${t.size | 0}px ${V('--mono')}`; ctx.fillText(t.s, t.x, t.y); }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // HUD
+  ctx.fillStyle = '#000a'; rr(14, 14, 204, 14, 3); ctx.fill();
+  ctx.fillStyle = p.hp / p.max < .3 ? COL.danger : '#5be08a'; rr(16, 16, 200 * p.hp / p.max, 10, 2); ctx.fill();
+  ctx.textAlign = 'left'; ctx.fillStyle = COL.fg; ctx.font = '700 12px ' + V('--mono');
+  ctx.fillText(Math.ceil(p.hp) + ' HP', 16, 42);
+  ctx.textAlign = 'right';
+  ctx.fillText(fmtTime(S.t) + '   ' + S.kills + ' kills', W - 16, 22);
+  if (S.banner) {
+    const b = S.banner, a = Math.min(1, b.life * 1.5);
+    ctx.globalAlpha = a; ctx.textAlign = 'center';
+    ctx.fillStyle = b.c; ctx.font = '700 40px ' + V('--display'); ctx.fillText(b.text, W / 2, H / 2 - 90);
+    ctx.fillStyle = COL.fg; ctx.font = '500 15px ' + V('--display'); ctx.fillText(b.sub.toUpperCase(), W / 2, H / 2 - 58);
+    ctx.globalAlpha = 1;
+  }
+
+  const locked = running && !S.dead && isLocked();
+  if (locked) {
+    ctx.textAlign = 'center'; ctx.fillStyle = COL.danger; ctx.font = '700 26px ' + V('--display');
+    ctx.fillText(S.hammers ? 'BAG LOCKED · USE YOUR HAMMER' : 'BAG LOCKED · ' + Math.max(0, 5 - S.lockT).toFixed(1) + 's', W / 2, H - 44);
+    if (!S.hammers) { ctx.fillStyle = COL.fg; ctx.font = '500 14px ' + V('--display'); ctx.fillText('Find a hammer before time runs out', W / 2, H - 18); }
+  }
+  if (S.hammerMode) {
+    ctx.fillStyle = '#0008'; ctx.fillRect(0, 0, W, H);
+    ctx.textAlign = 'center'; ctx.fillStyle = COL.accent; ctx.font = '700 22px ' + V('--display');
+    ctx.fillText('HAMMER · PICK A TILE', W / 2, 70);
+    ctx.fillStyle = COL.fg; ctx.font = '500 13px ' + V('--display');
+    ctx.fillText('Arrows move · Space smashes · Esc cancels', W / 2, 94);
+  }
+
+  const showFull = S.full > 0 || locked;
+  $('fm').hidden = !showFull; $('fm').textContent = locked ? 'Bag locked!' : 'Bag full · merge!';
+  bd.classList.toggle('full', showFull && !S.hammerMode);
+  bd.classList.toggle('hammer', S.hammerMode);
+  bd.classList.toggle('armed', S.hammers > 0 && running && !S.dead);
+  const hb = $('hamB'), lbl = S.hammerMode ? 'Cancel [Esc]' : `Hammer ×${S.hammers} [Space]`;
+  if (hb.textContent !== lbl) { hb.textContent = lbl; hb.disabled = !S.hammerMode && S.hammers === 0; }
+}
+
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(.05, (now - last) / 1000); last = now;
+  if (running && !S.paused && !S.dead) update(S.hammerMode ? dt * .25 : dt);
+  draw(); requestAnimationFrame(frame);
+}
+
+/* ---------- Overlay & input ---------- */
+const ov = $('ov');
+function showOverlay(t, html, btn) { $('ovT').textContent = t; $('ovP').innerHTML = html; $('ovB').textContent = btn; ov.hidden = false; $('ovB').focus(); }
+function start() {
+  if (S.dead || !running) newGame();
+  running = true; S.paused = false; ov.hidden = true;
+}
+function togglePause() {
+  if (!running || S.dead) return;
+  S.paused = !S.paused;
+  if (S.paused) showOverlay('Paused', 'Catch your breath. The enemies will wait.', 'Resume'); else ov.hidden = true;
+}
+$('ovB').onclick = () => start();
+$('pauseB').onclick = togglePause;
+$('hamB').onclick = toggleHammer;
+
+const ARROWS = { ArrowLeft: 0, ArrowRight: 1, ArrowUp: 2, ArrowDown: 3 };
+addEventListener('keydown', e => {
+  if (e.code in ARROWS) {
+    e.preventDefault(); if (e.repeat) return;
+    if (S.hammerMode) moveCursor(ARROWS[e.code]); else slide(ARROWS[e.code]);
+    return;
+  }
+  if (e.code === 'Space') {
+    e.preventDefault(); if (e.repeat || !ov.hidden) return;
+    if (S.hammerMode) smash(S.cursor); else toggleHammer();
+    return;
+  }
+  if (e.code === 'Escape' && S.hammerMode) { toggleHammer(); return; }
+  if (e.code === 'KeyP' || e.code === 'Escape') { togglePause(); return; }
+  if (e.code === 'Enter' && !ov.hidden) { start(); return; }
+  keys[e.code] = true;
+});
+addEventListener('keyup', e => { keys[e.code] = false; });
+addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+document.addEventListener('visibilitychange', () => { if (document.hidden && running && !S.dead && !S.paused) togglePause(); });
+
+function toArena(e) { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) / r.width * W, y: (e.clientY - r.top) / r.height * H }; }
+cv.addEventListener('pointerdown', e => { touchTarget = toArena(e); cv.setPointerCapture(e.pointerId); });
+cv.addEventListener('pointermove', e => { if (touchTarget) touchTarget = toArena(e); });
+cv.addEventListener('pointerup', () => { touchTarget = null; });
+cv.addEventListener('pointercancel', () => { touchTarget = null; });
+
+let sw = null;
+bd.addEventListener('pointerdown', e => { sw = { x: e.clientX, y: e.clientY }; });
+bd.addEventListener('pointerup', e => {
+  if (!sw) return;
+  const dx = e.clientX - sw.x, dy = e.clientY - sw.y; sw = null;
+  if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) {
+    const cell = e.target.closest('.cell');
+    if (cell) smash(+cell.dataset.i);
+    return;
+  }
+  if (S.hammerMode) return;
+  slide(Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 0 : 1) : (dy < 0 ? 2 : 3));
+});
+
+newGame();
+requestAnimationFrame(frame);
+</script>

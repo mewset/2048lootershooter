@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>2048 Looter Shooter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=JetBrains+Mono:wght@500;700&display=swap">
+</head>
+<body>
+  <div class="app">
+    <main class="stage" id="stage">
+      <canvas id="cv" aria-label="Arena"></canvas>
+      <div class="fxlayer" id="fx"></div>
+
+      <div class="hud">
+        <div class="hp">
+          <div class="hpbar"><i id="hpFill"></i></div>
+          <span id="hpText">100 HP</span>
+        </div>
+        <div class="clock"><span id="time">0:00</span><span id="kills">0 kills</span></div>
+      </div>
+
+      <div class="bossBar" id="bossBar" hidden>
+        <b id="bossName">The Warden</b>
+        <div class="bar"><i id="bossFill"></i></div>
+      </div>
+
+      <div class="banner" id="banner" hidden><b id="bannerT"></b><small id="bannerS"></small></div>
+      <div class="hammerHint" id="hammerHint" hidden>
+        <b>Hammer · pick a tile</b><small>Arrows move · Space smashes · Esc cancels</small>
+      </div>
+      <div class="lockWarn" id="lockWarn" hidden>
+        <b id="lockMsg"></b><small id="lockSub">Find a hammer before time runs out</small>
+      </div>
+
+      <div class="overlay" id="ov">
+        <div class="box">
+          <h2 id="ovT">2048 Looter Shooter</h2>
+          <p id="ovP"></p>
+          <button id="ovB">Start</button>
+        </div>
+      </div>
+    </main>
+
+    <aside class="side">
+      <h1>2048 <span>Looter</span> Shooter</h1>
+      <p class="records" id="records" hidden></p>
+      <div class="weapon">
+        <div>
+          <div class="rarity" id="wR">Common</div>
+          <div class="wname" id="wN">Pea Shooter</div>
+          <div class="trait" id="wT">Single shot</div>
+        </div>
+        <div class="stats">
+          <div class="stat"><small>Damage</small><b id="sD">3</b></div>
+          <div class="stat"><small>Shots/s</small><b id="sF">2.6</b></div>
+          <div class="stat"><small>Pellets</small><b id="sP">1</b></div>
+          <div class="stat"><small>Bag</small><b id="sB">1/16</b></div>
+        </div>
+        <div class="next" id="wX">Next: 4 → Rusty Pistol</div>
+      </div>
+
+      <div class="board" id="bd"></div>
+
+      <div class="row">
+        <button class="ghost" id="hamB">Hammer ×1 [Space]</button>
+        <button class="ghost" id="pauseB">Pause [P]</button>
+        <button class="ghost" id="muteB">Sound: on [M]</button>
+      </div>
+
+      <p class="help">
+        <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> to move · your gun aims and fires on its own<br>
+        <kbd>←</kbd><kbd>↑</kbd><kbd>→</kbd><kbd>↓</kbd> to swipe the bag (2048) · every merge heals a little<br>
+        The sum of all tiles raises your fire rate, and your highest tile decides your gun. When the bag is full you can't pick up loot.<br>
+        <b>Hammers</b> (yellow drops, max 3): click a tile to smash it, or press <kbd>Space</kbd> → arrows → <kbd>Space</kbd> (time slows down).<br>
+        If your bag locks up with no hammer, you have 5 seconds to find one before it's game over.
+      </p>
+      <p class="credits">
+        Soldier: <a href="https://tiago-melo.itch.io/" target="_blank" rel="noopener">Tiago Melo</a> ·
+        Ground tiles: <a href="https://snowhex.itch.io/" target="_blank" rel="noopener">SnowHex</a> ·
+        Effects: Super Pixel Effects Gigapack – Will Tice / <a href="https://untiedgames.itch.io/" target="_blank" rel="noopener">unTied Games</a> ·
+        Music: “Mega Bot Bay” by <a href="https://ansimuz.itch.io/" target="_blank" rel="noopener">Ansimuz</a> ·
+        Sound effects from <a href="https://pixabay.com/sound-effects/" target="_blank" rel="noopener">Pixabay</a> by
+        <a href="https://pixabay.com/users/u_b32baquv5u-50250111/" target="_blank" rel="noopener">u_b32baquv5u</a>,
+        <a href="https://pixabay.com/users/driken5482-45721595/" target="_blank" rel="noopener">Driken Stan</a> and
+        <a href="https://pixabay.com/users/freesound_community-46691455/" target="_blank" rel="noopener">freesound_community</a>
+      </p>
+    </aside>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

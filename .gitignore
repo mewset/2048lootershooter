@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.claude/
+
+# Full third-party asset pack: only the frames the game uses are copied into assets/.
+# The pack's license does not allow redistributing it on its own.
+Super Pixel Effects Gigapack*/
