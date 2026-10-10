@@ -5,4 +5,5 @@ export default defineConfig({
   base: './',
   publicDir: 'assets',
   server: { port: 5173 },
+  build: { target: 'es2022' }, // main.js uses top-level await
 });

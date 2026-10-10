@@ -2,6 +2,8 @@
 
 A top-down survival shooter where your inventory is a 2048 board.
 
+**▶ Play it in your browser: https://mewset.github.io/2048lootershooter/**
+
 ![A gunner lines up a shot while the bag fills with tiles](screenshots/03-gunner-aim.png)
 
 Enemies drop number tiles. Slide the bag to merge them: your **highest tile decides your gun** (Pea Shooter → Shotgun → Rail Carbine → … → THE 2048), and the **sum of all tiles sets your fire rate**. Every merge heals a little. A full bag can't pick up loot, and if it locks up with no hammer to smash a tile, you have five seconds before it's game over.
